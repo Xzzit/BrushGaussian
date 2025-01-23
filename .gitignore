@@ -1,0 +1,7 @@
+output/
+__pycache__/
+.vscode/
+
+build/
+dist/
+brush_gaussian_rasterization.egg-info/
