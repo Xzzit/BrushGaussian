@@ -10,82 +10,6 @@ import torch.nn as nn
 import torch
 from . import _C
 
-def cpu_deep_copy_tuple(input_tuple):
-    copied_tensors = [item.cpu().clone() if isinstance(item, torch.Tensor) else item for item in input_tuple]
-    return tuple(copied_tensors)
-
-def rasterize_gaussians(
-    means3D,
-    means2D,
-    sh,
-    colors_precomp,
-    opacities,
-    scales,
-    rotations,
-    cov3Ds_precomp,
-    raster_settings,
-):
-    return _RasterizeGaussians.apply(
-        means3D,
-        means2D,
-        sh,
-        colors_precomp,
-        opacities,
-        scales,
-        rotations,
-        cov3Ds_precomp,
-        raster_settings,
-    )
-
-class _RasterizeGaussians(torch.autograd.Function):
-    @staticmethod
-    def forward(
-        ctx,
-        means3D,
-        means2D,
-        sh,
-        colors_precomp,
-        opacities,
-        scales,
-        rotations,
-        cov3Ds_precomp,
-        raster_settings,
-    ):
-
-        # Restructure arguments the way that the C++ lib expects them
-        args = (
-            raster_settings.bg, 
-            means3D,
-            colors_precomp,
-            opacities,
-            scales,
-            rotations,
-            raster_settings.scale_modifier,
-            cov3Ds_precomp,
-            raster_settings.viewmatrix,
-            raster_settings.projmatrix,
-            raster_settings.tanfovx,
-            raster_settings.tanfovy,
-            raster_settings.image_height,
-            raster_settings.image_width,
-            sh,
-            raster_settings.sh_degree,
-            raster_settings.campos,
-            raster_settings.prefiltered,
-            raster_settings.antialiasing,
-            raster_settings.debug
-        )
-
-        # Invoke C++/CUDA rasterizer
-        num_rendered, color, radii, geomBuffer, binningBuffer, imgBuffer, invdepths = _C.brush_gaussian(*args)
-
-        return color, radii, invdepths
-    
-    @staticmethod
-    def backward(ctx, *grad_outputs):
-        # Return None for each input from forward()
-        return None, None, None, None, None, None, None, None, None
-
 class GaussianRasterizationSettings(NamedTuple):
     image_height: int
     image_width: int 
@@ -139,16 +63,31 @@ class GaussianRasterizer(nn.Module):
         if cov3D_precomp is None:
             cov3D_precomp = torch.Tensor([])
 
-        # Invoke C++/CUDA rasterization routine
-        return rasterize_gaussians(
+        # Restructure arguments the way that the C++ lib expects them
+        args = (
+            raster_settings.bg, 
             means3D,
-            means2D,
-            shs,
             colors_precomp,
             opacities,
-            scales, 
+            scales,
             rotations,
+            raster_settings.scale_modifier,
             cov3D_precomp,
-            raster_settings, 
+            raster_settings.viewmatrix,
+            raster_settings.projmatrix,
+            raster_settings.tanfovx,
+            raster_settings.tanfovy,
+            raster_settings.image_height,
+            raster_settings.image_width,
+            shs,
+            raster_settings.sh_degree,
+            raster_settings.campos,
+            raster_settings.prefiltered,
+            raster_settings.antialiasing,
+            raster_settings.debug
         )
 
+        # Invoke C++/CUDA rasterizer
+        num_rendered, color, radii, geomBuffer, binningBuffer, imgBuffer, invdepths = _C.brush_gaussian(*args)
+
+        return color, radii, invdepths
