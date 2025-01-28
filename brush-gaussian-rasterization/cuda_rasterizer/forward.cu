@@ -155,8 +155,6 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	const float* opacities,
 	const float* shs,
 	bool* clamped,
-	const float* cov3D_precomp,
-	const float* colors_precomp,
 	const float* viewmatrix,
 	const float* projmatrix,
 	const glm::vec3* cam_pos,
@@ -194,18 +192,10 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	float p_w = 1.0f / (p_hom.w + 0.0000001f);
 	float3 p_proj = { p_hom.x * p_w, p_hom.y * p_w, p_hom.z * p_w };
 
-	// If 3D covariance matrix is precomputed, use it, otherwise compute
-	// from scaling and rotation parameters. 
+	// Compute covariance from scaling and rotation. 
 	const float* cov3D;
-	if (cov3D_precomp != nullptr)
-	{
-		cov3D = cov3D_precomp + idx * 6;
-	}
-	else
-	{
-		computeCov3D(scales[idx], scale_modifier, rotations[idx], cov3Ds + idx * 6);
-		cov3D = cov3Ds + idx * 6;
-	}
+	computeCov3D(scales[idx], scale_modifier, rotations[idx], cov3Ds + idx * 6);
+	cov3D = cov3Ds + idx * 6;
 
 	// Compute 2D screen-space covariance matrix
 	float3 cov = computeCov2D(p_orig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, viewmatrix);
@@ -242,15 +232,11 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	if ((rect_max.x - rect_min.x) * (rect_max.y - rect_min.y) == 0)
 		return;
 
-	// If colors have been precomputed, use them, otherwise convert
-	// spherical harmonics coefficients to RGB color.
-	if (colors_precomp == nullptr)
-	{
-		glm::vec3 result = computeColorFromSH(idx, D, M, (glm::vec3*)orig_points, *cam_pos, shs, clamped);
-		rgb[idx * C + 0] = result.x;
-		rgb[idx * C + 1] = result.y;
-		rgb[idx * C + 2] = result.z;
-	}
+	// Convert spherical harmonics coefficients to RGB color.
+	glm::vec3 result = computeColorFromSH(idx, D, M, (glm::vec3*)orig_points, *cam_pos, shs, clamped);
+	rgb[idx * C + 0] = result.x;
+	rgb[idx * C + 1] = result.y;
+	rgb[idx * C + 2] = result.z;
 
 	// Store some useful helper data for the next steps.
 	depths[idx] = p_view.z;
@@ -440,8 +426,6 @@ void FORWARD::preprocess(int P, int D, int M,
 	const float* opacities,
 	const float* shs,
 	bool* clamped,
-	const float* cov3D_precomp,
-	const float* colors_precomp,
 	const float* viewmatrix,
 	const float* projmatrix,
 	const glm::vec3* cam_pos,
@@ -468,8 +452,6 @@ void FORWARD::preprocess(int P, int D, int M,
 		opacities,
 		shs,
 		clamped,
-		cov3D_precomp,
-		colors_precomp,
 		viewmatrix, 
 		projmatrix,
 		cam_pos,

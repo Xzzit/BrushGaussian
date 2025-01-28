@@ -26,13 +26,6 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     
     Background tensor (bg_color) must be on GPU!
     """
- 
-    # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
-    screenspace_points = torch.zeros_like(pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda") + 0
-    try:
-        screenspace_points.retain_grad()
-    except:
-        pass
 
     # Set up rasterization configuration
     tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
@@ -63,20 +56,13 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     rotations = pc.get_rotation
     shs = pc.get_features
 
-    means2D = screenspace_points
-    cov3D_precomp = None
-    colors_precomp = None
-
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     rendered_image, radii, depth_image = rasterizer(
         means3D = means3D,
-        means2D = means2D,
         shs = shs,
         opacities = opacity,
         scales = scales,
-        rotations = rotations,
-        cov3D_precomp = cov3D_precomp,
-        colors_precomp = colors_precomp
+        rotations = rotations
         )
 
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
@@ -84,7 +70,6 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     rendered_image = rendered_image.clamp(0, 1)
     out = {
         "render": rendered_image,
-        "viewspace_points": screenspace_points,
         "visibility_filter" : (radii > 0).nonzero(),
         "radii": radii,
         "depth" : depth_image
