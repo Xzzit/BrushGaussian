@@ -347,15 +347,23 @@ renderCUDA(
 			float2 xy = collected_xy[j];
 			float2 d = { xy.x - pixf.x, xy.y - pixf.y };
 			float4 con_o = collected_conic_opacity[j];
-			float power = -0.5f * (con_o.x * d.x * d.x + con_o.z * d.y * d.y) - con_o.y * d.x * d.y;
+
+			// Gaussian distribution power
+			float ellip = con_o.x * d.x * d.x + con_o.z * d.y * d.y + 2.0f * con_o.y * d.x * d.y;
+			float power = -0.5f * ellip;
 			if (power > 0.0f)
 				continue;
+
+			// Check if we are inside the ellipse
+			bool inside = (ellip <= 1.0); // Ellipse rendering
+			// bool inside = abs(ellip - 0.9f) < 0.3f; // Border rendering
 
 			// Eq. (2) from 3D Gaussian splatting paper.
 			// Obtain alpha by multiplying with Gaussian opacity
 			// and its exponential falloff from mean.
 			// Avoid numerical instabilities (see paper appendix). 
-			float alpha = min(0.99f, con_o.w * exp(power));
+			// float alpha = min(0.99f, con_o.w * exp(power)); // Gaussian splatting
+			float alpha = inside ? min(0.99f, con_o.w) : 0.0f; // Ellipse splatting
 			if (alpha < 1.0f / 255.0f)
 				continue;
 			float test_T = T * (1 - alpha);

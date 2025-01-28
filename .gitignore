@@ -2,6 +2,7 @@ output/
 __pycache__/
 .vscode/
 
+assets/
 build/
 dist/
 brush_gaussian_rasterization.egg-info/
