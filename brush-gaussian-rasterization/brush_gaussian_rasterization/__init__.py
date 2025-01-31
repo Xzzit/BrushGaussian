@@ -41,7 +41,7 @@ class GaussianRasterizer(nn.Module):
             
         return visible
 
-    def forward(self, means3D, shs, opacities, scales, rotations):
+    def forward(self, means3D, shs, opacities, scales, rotations, texture):
         
         raster_settings = self.raster_settings
 
@@ -64,6 +64,7 @@ class GaussianRasterizer(nn.Module):
             raster_settings.campos,
             raster_settings.prefiltered,
             raster_settings.antialiasing,
+            texture,
             raster_settings.debug
         )
 

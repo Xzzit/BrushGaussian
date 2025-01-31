@@ -47,6 +47,7 @@ namespace CudaRasterizer
 			float* out_color,
 			float* depth,
 			bool antialiasing,
+			const float* texture,
 			int* radii = nullptr,
 			bool debug = false);
 	};

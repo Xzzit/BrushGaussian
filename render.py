@@ -15,12 +15,13 @@ import torch
 import torchvision
 
 from scene import Scene
-from utils.general_utils import safe_state
+from utils.general_utils import safe_state, load_image
 from arguments import ModelParams, PipelineParams, get_combined_args
 from scene.gaussian_model import GaussianModel
 from brush_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0):
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
+           scaling_modifier = 1.0, texture = None):
     """
     Render the scene. 
     
@@ -62,7 +63,8 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         shs = shs,
         opacities = opacity,
         scales = scales,
-        rotations = rotations
+        rotations = rotations,
+        texture = texture
         )
 
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
@@ -77,7 +79,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     
     return out
 
-def render_set(model_path, name, iteration, views, gaussians, pipeline, background):
+def render_set(model_path, name, iteration, views, gaussians, pipeline, background, texture):
     render_path = os.path.join(model_path, name, "iterations_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "iterations_{}".format(iteration), "gt")
 
@@ -85,13 +87,13 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     makedirs(gts_path, exist_ok=True)
 
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
-        rendering = render(view, gaussians, pipeline, background)["render"]
+        rendering = render(view, gaussians, pipeline, background, 1.0, texture)["render"]
         gt = view.original_image[0:3, :, :]
 
         torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
         torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
 
-def render_sets(dataset: ModelParams, pipeline: PipelineParams, iteration: int):
+def render_sets(dataset: ModelParams, pipeline: PipelineParams, iteration: int, texture_path: str):
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree)
         scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
@@ -99,9 +101,14 @@ def render_sets(dataset: ModelParams, pipeline: PipelineParams, iteration: int):
         bg_color = [1,1,1] if dataset.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
+        if texture_path:
+            texture = load_image(texture_path).to("cuda")
+        else:
+            texture = torch.Tensor([])
+
         # Render training and test sets
         render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), 
-                   gaussians, pipeline, background)
+                   gaussians, pipeline, background, texture)
 
         # render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), 
         #            gaussians, pipeline, background)
@@ -113,10 +120,11 @@ if __name__ == "__main__":
     pipeline = PipelineParams(parser)
     parser.add_argument("--iteration", default=-1, type=int)
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--texture", default='', type=str)
     args = get_combined_args(parser)
     print("Rendering " + args.model_path)
 
     # Initialize system state (RNG)
     safe_state(args.quiet)
 
-    render_sets(model.extract(args), pipeline.extract(args), args.iteration)
+    render_sets(model.extract(args), pipeline.extract(args), args.iteration, args.texture)

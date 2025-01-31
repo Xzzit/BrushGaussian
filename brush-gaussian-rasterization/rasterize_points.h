@@ -32,6 +32,7 @@ RasterizeGaussiansCUDA(
 	const torch::Tensor& campos,
 	const bool prefiltered,
 	const bool antialiasing,
+	const torch::Tensor& texture,
 	const bool debug);
 		
 torch::Tensor markVisible(

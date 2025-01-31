@@ -252,6 +252,23 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	tiles_touched[idx] = (rect_max.y - rect_min.y) * (rect_max.x - rect_min.x);
 }
 
+// Convert 2D conic to 2D covariance matrix
+__device__ float3 conic2D_to_cov2D(const float3& conic) 
+{
+	// M = [a, b,
+    //     [b, c]
+    // Σ = M^-1
+	float a = conic.x;
+	float b = conic.y;
+	float c = conic.z;
+    
+    // M^-1 = (1/det_M) * [c, -b,
+    //                    [-b, a]
+    float det_M = a * c - b * b;
+    float inv_factor = 1.0 / det_M;
+	return { c * inv_factor, -b * inv_factor, a * inv_factor };
+}
+
 // Main rasterization method. Collaboratively works on one tile per
 // block, each thread treats one pixel. Alternates between fetching 
 // and rasterizing data.
@@ -269,7 +286,8 @@ renderCUDA(
 	const float* __restrict__ bg_color,
 	float* __restrict__ out_color,
 	const float* __restrict__ depths,
-	float* __restrict__ invdepth)
+	float* __restrict__ invdepth,
+	const float* __restrict__ texture)
 {
 	// Identify current tile and associated min/max pixel range.
 	auto block = cg::this_thread_block();
@@ -333,25 +351,47 @@ renderCUDA(
 			float2 xy = collected_xy[j];
 			float2 d = { xy.x - pixf.x, xy.y - pixf.y };
 			float4 con_o = collected_conic_opacity[j];
+			float alpha = 0.0f;
 
-			// Gaussian distribution power
-			float ellip = con_o.x * d.x * d.x + con_o.z * d.y * d.y + 2.0f * con_o.y * d.x * d.y;
-			float power = -0.5f * ellip;
-			if (power > 0.0f)
-				continue;
+			if (texture == nullptr)
+			{
+				// Ellipse splatting
+				// Gaussian distribution power
+				float ellip = con_o.x * d.x * d.x + con_o.z * d.y * d.y + 2.0f * con_o.y * d.x * d.y;
+				float power = -0.5f * ellip;
+				if (power > 0.0f)
+					continue;
 
-			// Check if we are inside the ellipse
-			bool inside = (ellip <= 1.0); // Ellipse rendering
-			// bool inside = abs(ellip - 0.9f) < 0.3f; // Border rendering
+				// Check if we are inside the ellipse
+				bool inside = (ellip <= 1.0);
+				alpha = inside ? min(0.99f, con_o.w) : 0.0f; // Ellipse rendering
+			}
+			else
+			{
+				// Compute sigma and rho from conic matrix
+				float3 cov2D = conic2D_to_cov2D({ con_o.x, con_o.y, con_o.z });
+				float sigma_x = sqrt(cov2D.x);
+				float sigma_y = sqrt(cov2D.z);
+				float rho = cov2D.y / (sigma_x * sigma_y);
 
-			// Eq. (2) from 3D Gaussian splatting paper.
-			// Obtain alpha by multiplying with Gaussian opacity
-			// and its exponential falloff from mean.
-			// Avoid numerical instabilities (see paper appendix). 
-			// float alpha = min(0.99f, con_o.w * exp(power)); // Gaussian splatting
-			float alpha = inside ? min(0.99f, con_o.w) : 0.0f; // Ellipse splatting
+				// Compute the rotation theta of the ellipse
+				float theta = 0.5f * atan2(2.0f * rho * sigma_x * sigma_y, cov2D.x - cov2D.z);
+				float cos_theta = cos(theta);
+				float sin_theta = sin(theta);
+
+				// Apply rotation to the pixel
+				float x_rot = cos_theta * d.x + sin_theta * d.y;
+				float y_rot = -sin_theta * d.x + cos_theta * d.y;
+
+				// Check if we are inside the rectangle
+				if (abs(x_rot) < sigma_x && abs(y_rot) < sigma_y)
+    				alpha = min(0.99f, con_o.w);
+			}
+
+			// Skip if alpha is too small
 			if (alpha < 1.0f / 255.0f)
 				continue;
+
 			float test_T = T * (1 - alpha);
 			if (test_T < 0.0001f)
 			{
@@ -401,7 +441,8 @@ void FORWARD::render(
 	const float* bg_color,
 	float* out_color,
 	float* depths,
-	float* depth)
+	float* depth,
+	const float* texture)
 {
 	renderCUDA<NUM_CHANNELS> << <grid, block >> > (
 		ranges,
@@ -415,7 +456,8 @@ void FORWARD::render(
 		bg_color,
 		out_color,
 		depths, 
-		depth);
+		depth,
+		texture);
 }
 
 void FORWARD::preprocess(int P, int D, int M,

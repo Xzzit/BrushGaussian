@@ -8,8 +8,10 @@
 import sys
 import random
 from datetime import datetime
+from PIL import Image
 
 import torch
+import torchvision
 import numpy as np
 
 def inverse_sigmoid(x):
@@ -22,6 +24,13 @@ def PILtoTorch(pil_image, resolution):
         return resized_image.permute(2, 0, 1)
     else:
         return resized_image.unsqueeze(dim=-1).permute(2, 0, 1)
+    
+def load_image(path, size=256):
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.Resize(size),
+        torchvision.transforms.ToTensor() # [0, 1] with shape (C, H, W)
+    ])
+    return transform(Image.open(path))
 
 def safe_state(silent):
     old_f = sys.stdout
