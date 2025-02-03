@@ -269,6 +269,40 @@ __device__ float3 convertConicToCov(const float3& conic)
 	return { c * inv_factor, -b * inv_factor, a * inv_factor };
 }
 
+// Sample from texture
+__device__ float sampleFromTexture(const float* texture,
+    const int tex_width, const int tex_height, const int channels,
+	float u, float v
+) {
+    // Clamp UV coordinates
+    u = max(0.0f, min(1.0f, u));
+    v = max(0.0f, min(1.0f, v));
+
+    // Convert to texture space
+    float x = u * (tex_width - 1);
+    float y = v * (tex_height - 1);
+    
+    // Bilinear interpolation
+    int x0 = max(0, min(tex_width-1, (int)floorf(x)));
+    int x1 = max(0, min(tex_width-1, x0 + 1));
+    int y0 = max(0, min(tex_height-1, (int)floorf(y)));
+    int y1 = max(0, min(tex_height-1, y0 + 1));
+    
+    float wx = x - x0;
+    float wy = y - y0;
+
+    // Sample texture (using first channel as mask)
+    float v00 = texture[y0 * tex_width + x0];
+    float v01 = texture[y0 * tex_width + x1];
+    float v10 = texture[y1 * tex_width + x0];
+    float v11 = texture[y1 * tex_width + x1];
+    
+    return (1.0f - wx) * (1.0f - wy) * v00 + 
+           wx * (1.0f - wy) * v01 +
+           (1.0f - wx) * wy * v10 +
+           wx * wy * v11;
+}
+
 // Main rasterization method. Collaboratively works on one tile per
 // block, each thread treats one pixel. Alternates between fetching 
 // and rasterizing data.
@@ -385,12 +419,19 @@ renderCUDA(
 				float det = cov2D.x * cov2D.z - cov2D.y * cov2D.y;
 				float lambda1 = mid + sqrt(max(0.1f, mid * mid - det));
 				float lambda2 = mid - sqrt(max(0.1f, mid * mid - det));
-				float principal_x = ceil(sqrt(lambda1));
-				float principal_y = ceil(sqrt(lambda2));
+				float principal_x = ceil(2.5f*sqrt(lambda1));
+				float principal_y = ceil(2.5f*sqrt(lambda2));
+
+				// Map coordinates to texture space
+				float u = 0.5f + 0.5f * x_rot / principal_x;
+				float v = 0.5f + 0.5f * y_rot / principal_y;
+
+				// Sample from texture
+				float mask = sampleFromTexture(texture, 256, 256, 1, u, v);
 
 				// Check if we are inside the rectangle
 				if (abs(x_rot) < principal_x && abs(y_rot) < principal_y)
-					alpha = min(0.99f, con_o.w);
+					alpha = min(0.99f, con_o.w * mask);
 			}
 
 			// Skip if alpha is too small

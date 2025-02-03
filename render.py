@@ -102,7 +102,8 @@ def render_sets(dataset: ModelParams, pipeline: PipelineParams, iteration: int, 
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
         if texture_path:
-            texture = load_image(texture_path).to("cuda")
+            texture = load_image(texture_path)
+            texture = texture[1].unsqueeze(0).to("cuda")
         else:
             texture = torch.Tensor([])
 
