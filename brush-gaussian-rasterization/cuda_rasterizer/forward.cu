@@ -370,12 +370,9 @@ renderCUDA(
 			{
 				// Compute sigma and rho from conic matrix
 				float3 cov2D = conic2D_to_cov2D({ con_o.x, con_o.y, con_o.z });
-				float sigma_x = sqrt(cov2D.x);
-				float sigma_y = sqrt(cov2D.z);
-				float rho = cov2D.y / (sigma_x * sigma_y);
 
 				// Compute the rotation theta of the ellipse
-				float theta = 0.5f * atan2(2.0f * rho * sigma_x * sigma_y, cov2D.x - cov2D.z);
+				float theta = 0.5f * atan2(2.0f * cov2D.y, cov2D.x - cov2D.z);
 				float cos_theta = cos(theta);
 				float sin_theta = sin(theta);
 
@@ -383,9 +380,17 @@ renderCUDA(
 				float x_rot = cos_theta * d.x + sin_theta * d.y;
 				float y_rot = -sin_theta * d.x + cos_theta * d.y;
 
+				// Compute principal axis length
+				float mid = 0.5f * (cov2D.x + cov2D.z);
+				float det = cov2D.x * cov2D.z - cov2D.y * cov2D.y;
+				float lambda1 = mid + sqrt(max(0.1f, mid * mid - det));
+				float lambda2 = mid - sqrt(max(0.1f, mid * mid - det));
+				float principal_x = ceil(sqrt(lambda1));
+				float principal_y = ceil(sqrt(lambda2));
+
 				// Check if we are inside the rectangle
-				if (abs(x_rot) < sigma_x && abs(y_rot) < sigma_y)
-    				alpha = min(0.99f, con_o.w);
+				if (abs(x_rot) < principal_x && abs(y_rot) < principal_y)
+					alpha = min(0.99f, con_o.w);
 			}
 
 			// Skip if alpha is too small
