@@ -253,7 +253,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 }
 
 // Convert 2D conic to 2D covariance matrix
-__device__ float3 conic2D_to_cov2D(const float3& conic) 
+__device__ float3 convertConicToCov(const float3& conic) 
 {
 	// M = [a, b,
     //     [b, c]
@@ -369,7 +369,7 @@ renderCUDA(
 			else
 			{
 				// Compute sigma and rho from conic matrix
-				float3 cov2D = conic2D_to_cov2D({ con_o.x, con_o.y, con_o.z });
+				float3 cov2D = convertConicToCov({ con_o.x, con_o.y, con_o.z });
 
 				// Compute the rotation theta of the ellipse
 				float theta = 0.5f * atan2(2.0f * cov2D.y, cov2D.x - cov2D.z);
