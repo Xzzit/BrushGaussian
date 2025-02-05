@@ -26,11 +26,28 @@ def PILtoTorch(pil_image, resolution):
         return resized_image.unsqueeze(dim=-1).permute(2, 0, 1)
     
 def load_image(path, size=256):
+    img = Image.open(path)
+
     transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(size),
+        torchvision.transforms.CenterCrop(size),
         torchvision.transforms.ToTensor() # [0, 1] with shape (C, H, W)
     ])
-    return transform(Image.open(path))
+    tensor = transform(img)
+
+    if img.mode == "L":
+        print("L mode detected, using grayscale as alpha channel.")
+    elif img.mode == "LA":
+        print("LA mode detected, using alpha channel.")
+        tensor = tensor[1].unsqueeze(0).to("cuda")
+    elif img.mode == "RGB":
+        print("Warning: RGB mode detected. Please provide an alpha channel.")
+        tensor = torch.Tensor([])
+    elif img.mode == "RGBA":
+        print("RGBA mode detected, using alpha channel.")
+        tensor = tensor[3].unsqueeze(0).to("cuda")
+
+    return tensor
 
 def safe_state(silent):
     old_f = sys.stdout
