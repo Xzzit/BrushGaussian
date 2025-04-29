@@ -22,6 +22,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('-m', '--model', type=str)
     parser.add_argument('-i', '--iteration', type=int, default=-1)
+    parser.add_argument('-n', '--num_clusters', type=int, default=-1)
     args = parser.parse_args()
 
     # Load info
@@ -65,13 +66,17 @@ def main():
     # 2nd. KMeans clustering based on xyz and RGB
     rgb3 = torch.clamp(SH2RGB(gaussians._features_dc[:, 0, :]), min=0, max=1)
     fv = torch.cat([gaussians.get_xyz, gaussians.get_scaling, rgb3], dim=-1)
-    num_clusters = 8000
+    if args.num_clusters == -1:
+        # num_clusters = int(gaussians.get_xyz.shape[0] * 0.01)
+        num_clusters = 10000
+    else:
+        num_clusters = args.num_clusters
     kmeans = MiniBatchKMeans(n_clusters=num_clusters, batch_size=8192)
     cluster_labels = kmeans.fit_predict(fv.cpu().numpy())
     num_points_list = []
 
     means3D = torch.empty((num_clusters, 3), device="cuda")
-    opacities = torch.ones((num_clusters, 1), device="cuda")
+    opacities = torch.empty((num_clusters, 1), device="cuda")
     scales = torch.empty((num_clusters, 3), device="cuda")
     rotations = torch.empty((num_clusters, 4), device="cuda")
     shs = torch.empty((num_clusters, 16, 3), device="cuda")
@@ -81,19 +86,23 @@ def main():
         num_points = gaussians.get_xyz[mask].shape[0]
         num_points_list.append(num_points)
         means3D[i] = torch.mean(gaussians.get_xyz[mask], dim=0)
-        opacities[i] *= (torch.rand(1, device="cuda") * 0.7 + 0.3)
+        opacities[i] = torch.mean(gaussians.get_opacity[mask], dim=0)
         scales[i] = torch.mean(gaussians.get_scaling[mask], dim=0) * int(num_points ** (1/3))
         rotations[i] = torch.mean(gaussians.get_rotation[mask], dim=0)
         shs[i] = torch.mean(gaussians.get_features[mask], dim=0)
+    print(f"After clustering, {num_clusters} clusters were created.")
 
     # 3rd. Remove floating Gaussians
     num_points_list = torch.tensor(num_points_list)
     if num_clusters > 1000:
-        k = torch.argsort(num_points_list)[:int(num_clusters * 0.05)] # 5% of the clusters to remove (floating Gaussians)
+        k = torch.argsort(num_points_list)[:int(num_clusters * 0.1)]
+        k_opa = torch.argsort(opacities[:, 0])[:int(num_clusters * 0.1)]
         mask = torch.ones(num_clusters, dtype=torch.bool)
         mask[k] = False
+        mask[k_opa] = False
         means3D = means3D[mask]
         opacities = opacities[mask]
+        opacities = (opacities - opacities.min()) / (opacities.max() - opacities.min()) * 0.6 + 0.4
         scales = scales[mask]
         rotations = rotations[mask]
         shs = shs[mask]
@@ -105,7 +114,7 @@ def main():
     gaussians._rotation = rotations.clone().detach()
     gaussians._features_dc = shs[:, 0:1, :].contiguous().clone().detach()
     gaussians._features_rest = shs[:, 1:, :].contiguous().clone().detach()
-    print(f"Clustering completed. Remaining: {gaussians.get_xyz.shape[0]}")
+    print(f"After removing floating GS. Remaining: {gaussians.get_xyz.shape[0]}")
 
     gaussians.save_ply(os.path.join(args.model, "point_cloud", "iteration_37",
                                     "point_cloud.ply"))

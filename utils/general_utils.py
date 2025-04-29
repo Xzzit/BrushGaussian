@@ -26,26 +26,31 @@ def PILtoTorch(pil_image, resolution):
         return resized_image.unsqueeze(dim=-1).permute(2, 0, 1)
     
 def load_image(path, size=256):
-    img = Image.open(path)
+    img = Image.open(path).convert('RGBA')
+
+    img_np = np.array(img)
+    alpha = img_np[:, :, 3]
+    non_zero_indices = np.argwhere(alpha > 0)
+
+    if non_zero_indices.size == 0:
+        print("Warning: Whole image alpha == 0. Returning empty tensor.")
+        return torch.Tensor([])
+
+    top_left = non_zero_indices.min(axis=0)
+    bottom_right = non_zero_indices.max(axis=0)
+
+    top, left = top_left
+    bottom, right = bottom_right
+
+    cropped_img = img.crop((left, top, right+1, bottom+1))
 
     transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(size),
         torchvision.transforms.CenterCrop(size),
         torchvision.transforms.ToTensor() # [0, 1] with shape (C, H, W)
     ])
-    tensor = transform(img)
-
-    if img.mode == "L":
-        print("L mode detected, using grayscale as alpha channel.")
-    elif img.mode == "LA":
-        print("LA mode detected, using alpha channel.")
-        tensor = tensor[1].unsqueeze(0).to("cuda")
-    elif img.mode == "RGB":
-        print("Warning: RGB mode detected. Please provide an alpha channel.")
-        tensor = torch.Tensor([])
-    elif img.mode == "RGBA":
-        print("RGBA mode detected, using alpha channel.")
-        tensor = tensor[3].unsqueeze(0).to("cuda")
+    tensor = transform(cropped_img)
+    tensor = tensor[3].unsqueeze(0).to("cuda")
 
     return tensor
 
