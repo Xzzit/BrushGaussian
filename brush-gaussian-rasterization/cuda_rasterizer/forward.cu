@@ -270,8 +270,8 @@ __device__ float3 convertConicToCov(const float3& conic)
 }
 
 // Sample from texture
-__device__ float sampleFromTexture(const float* texture,
-    const int tex_width, const int tex_height, const int channels,
+__device__ float2 sampleFromTexture(const float* texture, const float* normal,
+    const int width, const int height, const int channels,
 	float u, float v
 ) {
     // Clamp UV coordinates
@@ -279,28 +279,42 @@ __device__ float sampleFromTexture(const float* texture,
     v = max(0.0f, min(1.0f, v));
 
     // Convert to texture space
-    float x = u * (tex_width - 1);
-    float y = v * (tex_height - 1);
+    float x = u * (width - 1);
+    float y = v * (height - 1);
     
     // Bilinear interpolation
-    int x0 = max(0, min(tex_width-1, (int)floorf(x)));
-    int x1 = max(0, min(tex_width-1, x0 + 1));
-    int y0 = max(0, min(tex_height-1, (int)floorf(y)));
-    int y1 = max(0, min(tex_height-1, y0 + 1));
+    int x0 = max(0, min(width-1, (int)floorf(x)));
+    int x1 = max(0, min(width-1, x0 + 1));
+    int y0 = max(0, min(height-1, (int)floorf(y)));
+    int y1 = max(0, min(height-1, y0 + 1));
     
     float wx = x - x0;
     float wy = y - y0;
 
     // Sample texture (using first channel as mask)
-    float v00 = texture[y0 * tex_width + x0];
-    float v01 = texture[y0 * tex_width + x1];
-    float v10 = texture[y1 * tex_width + x0];
-    float v11 = texture[y1 * tex_width + x1];
+    float v00 = texture[y0 * width + x0];
+    float v01 = texture[y0 * width + x1];
+    float v10 = texture[y1 * width + x0];
+    float v11 = texture[y1 * width + x1];
+
+    // Sample normal (assuming single channel for height)
+    float norm00 = normal[y0 * width + x0];
+    float norm01 = normal[y0 * width + x1];
+    float norm10 = normal[y1 * width + x0];
+    float norm11 = normal[y1 * width + x1];
+
+	// Bilinear interpolation
+	float tex_val = (1.0f - wx) * (1.0f - wy) * v00 +
+           			wx * (1.0f - wy) * v01 +
+           			(1.0f - wx) * wy * v10 +
+           			wx * wy * v11;
+	
+	float norm_val = (1.0f - wx) * (1.0f - wy) * norm00 + 
+                    wx * (1.0f - wy) * norm01 +
+                    (1.0f - wx) * wy * norm10 +
+                    wx * wy * norm11;
     
-    return (1.0f - wx) * (1.0f - wy) * v00 + 
-           wx * (1.0f - wy) * v01 +
-           (1.0f - wx) * wy * v10 +
-           wx * wy * v11;
+    return make_float2(tex_val, norm_val);
 }
 
 // Main rasterization method. Collaboratively works on one tile per
@@ -321,7 +335,8 @@ renderCUDA(
 	float* __restrict__ out_color,
 	const float* __restrict__ depths,
 	float* __restrict__ invdepth,
-	const float* __restrict__ texture)
+	const float* __restrict__ texture,
+	const float* __restrict__ normal)
 {
 	// Identify current tile and associated min/max pixel range.
 	auto block = cg::this_thread_block();
@@ -427,11 +442,13 @@ renderCUDA(
 				float v = 0.5f + 0.5f * y_rot / principal_y;
 
 				// Sample from texture
-				float mask = sampleFromTexture(texture, 256, 256, 1, u, v);
+				float2 sample = sampleFromTexture(texture, normal, 256, 256, 1, u, v);
+				float mask = sample.x;
+				float lightness = sample.y;
 
 				// Check if we are inside the rectangle
 				if (abs(x_rot) < principal_x && abs(y_rot) < principal_y)
-					alpha = min(0.99f, con_o.w * mask);
+					alpha = min(0.99f, con_o.w * mask * lightness);
 			}
 
 			// Skip if alpha is too small
@@ -488,7 +505,8 @@ void FORWARD::render(
 	float* out_color,
 	float* depths,
 	float* depth,
-	const float* texture)
+	const float* texture,
+	const float* normal)
 {
 	renderCUDA<NUM_CHANNELS> << <grid, block >> > (
 		ranges,
@@ -503,7 +521,8 @@ void FORWARD::render(
 		out_color,
 		depths, 
 		depth,
-		texture);
+		texture,
+		normal);
 }
 
 void FORWARD::preprocess(int P, int D, int M,

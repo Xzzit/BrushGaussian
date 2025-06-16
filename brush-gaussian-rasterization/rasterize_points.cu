@@ -50,6 +50,7 @@ RasterizeGaussiansCUDA(
 	const bool prefiltered,
 	const bool antialiasing,
 	const torch::Tensor& texture,
+	const torch::Tensor& normal,
 	const bool debug)
 {
   if (means3D.ndimension() != 2 || means3D.size(1) != 3) {
@@ -113,6 +114,7 @@ RasterizeGaussiansCUDA(
 		out_invdepthptr,
 		antialiasing,
 		texture.contiguous().data_ptr<float>(),
+		normal.contiguous().data_ptr<float>(),
 		radii.contiguous().data<int>(),
 		debug);
   }

@@ -59,7 +59,8 @@ namespace FORWARD
 		float* out_color,
 		float* depths,
 		float* depth,
-		const float* texture);
+		const float* texture,
+		const float* normal);
 }
 
 

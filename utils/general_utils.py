@@ -12,6 +12,7 @@ from PIL import Image
 
 import torch
 import torchvision
+from scipy.ndimage import sobel, gaussian_filter
 import numpy as np
 
 def inverse_sigmoid(x):
@@ -49,10 +50,35 @@ def load_image(path, size=256):
         torchvision.transforms.CenterCrop(size),
         torchvision.transforms.ToTensor() # [0, 1] with shape (C, H, W)
     ])
-    tensor = transform(cropped_img)
-    tensor = tensor[3].unsqueeze(0).to("cuda")
+    tensor_img = transform(cropped_img)
+    tensor_img = tensor_img[3].unsqueeze(0).to("cuda")
 
-    return tensor
+    # Compute lighting normals
+    img_rgb = np.asarray(cropped_img).astype(np.float32) / 255.0
+    img_gray = 0.2989 * img_rgb[..., 0] + 0.5870 * img_rgb[..., 1] + 0.1140 * img_rgb[..., 2]
+
+    height_map = gaussian_filter(img_gray, sigma=1)
+
+    dx = sobel(height_map, axis=1)  # Sobel in X direction
+    dy = sobel(height_map, axis=0)  # Sobel in Y direction
+    dz = np.ones_like(height_map) * 0.5
+
+    normals = np.stack((-dx, -dy, dz), axis=-1)
+    norms = np.linalg.norm(normals, axis=2, keepdims=True)
+    normals /= np.maximum(norms, 1e-8)
+
+    # Light direction
+    light_dir = np.array([1, 1, 1])
+    light_dir = light_dir / np.linalg.norm(light_dir)
+
+    # Step 4: Compute diffuse shading
+    diffuse = np.clip(np.sum(normals * light_dir, axis=2), 0, 1)
+    ambient = 0.5
+    shading = np.clip(ambient + diffuse * 0.7, 0, 1)
+    shading = shading.astype(np.float32)
+
+    tensor_shading = torch.from_numpy(shading).unsqueeze(0).to("cuda")
+    return tensor_img, tensor_shading
 
 def build_rotation(r):
     norm = torch.sqrt(r[:,0]*r[:,0] + r[:,1]*r[:,1] + r[:,2]*r[:,2] + r[:,3]*r[:,3])
