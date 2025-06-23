@@ -1,7 +1,7 @@
 import os
 import torch
 from sklearn.cluster import MiniBatchKMeans
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
 
 from scene.gaussian_model import GaussianModel
 from utils.system_utils import searchForMaxIteration
