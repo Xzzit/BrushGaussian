@@ -3,6 +3,7 @@ __pycache__/
 .vscode/
 
 assets/
+texture/
 build/
 dist/
 brush_gaussian_rasterization.egg-info/
