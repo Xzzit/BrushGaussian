@@ -6,12 +6,20 @@
 
 Abstract: We present a method for enhancing 3D Gaussian Splatting primitives with brushstroke-aware stylization. Previous approaches to 3D style transfer are typically limited to color or texture modifications, lacking an understanding of artistic shape deformation. In contrast, we focus on individual 3D Gaussian primitives, exploring their potential to enable style transfer that incorporates both color- and brushstroke-inspired local geometric stylization. Specifically, we introduce additional texture features for each Gaussian primitive and apply a texture mapping technique to achieve brushstroke-like geometric effects in a rendered scene. Furthermore, we propose an unsupervised clustering algorithm to efficiently prune redundant Gaussians, ensuring that our method seamlessly integrates with existing 3D Gaussian Splatting pipelines. Extensive evaluations demonstrate that our approach outperforms existing baselines by producing brushstroke-aware artistic renderings with richer geometric expressiveness and enhanced visual appeal.
 
+## Cloning
+To clone the repository, run
+```bash
+git clone https://github.com/Xzzit/BrushGS --recursive
+cd BrushGS
+```
+
 ## Installation
 if you have [3D Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting) installed, just run
 ```bash
-scikit-learn=1.0.2
+conda activate <your_3DGS_env>
+pip install scikit-learn=1.0.2
 ```
-otherwise, you can create a new conda environment by running:
+otherwise, you can create a new conda environment by running
 ```bash
 conda env create -f environment.yml
 ```
@@ -19,6 +27,25 @@ conda env create -f environment.yml
 ## Running
 ### Step 0: (Optional) Train a Gaussian Splatting Model
 If you don't already have a pre-trained model, follow the instructions in the [3D Gaussian Splatting repository](https://github.com/graphdeco-inria/gaussian-splatting) to train a Gaussian Splatting model on your dataset.
+
+After training, your pre-trained model's directory should look like this:
+```
+name_of_the_scene/
+├── point_cloud
+    ├── iteration_7000
+        ├── point_cloud.ply
+    ├── iteration_30000
+    ...
+├── test
+    ...
+├── train
+    ...
+├── cameras.json
+├── cfg_args
+└── exposure.json
+├── input.ply
+```
+
 
 ### Step 1: Pruning and Clustering
 Run the following command to perform pruning and clustering:
