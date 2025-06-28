@@ -4,54 +4,80 @@
   <img src="assets/fig1.png" alt="description" width="720"/>
 </p>
 
-Abstract: We present a method for enhancing 3D Gaussian Splatting primitives with brushstroke-aware stylization. Previous approaches to 3D style transfer are typically limited to color or texture modifications, lacking an understanding of artistic shape deformation. In contrast, we focus on individual 3D Gaussian primitives, exploring their potential to enable style transfer that incorporates both color- and brushstroke-inspired local geometric stylization. Specifically, we introduce additional texture features for each Gaussian primitive and apply a texture mapping technique to achieve brushstroke-like geometric effects in a rendered scene. Furthermore, we propose an unsupervised clustering algorithm to efficiently prune redundant Gaussians, ensuring that our method seamlessly integrates with existing 3D Gaussian Splatting pipelines. Extensive evaluations demonstrate that our approach outperforms existing baselines by producing brushstroke-aware artistic renderings with richer geometric expressiveness and enhanced visual appeal.
+BrushGaussian is a method for enhancing 3D Gaussian Splatting with brushstroke-aware stylization — supporting both color transfer and artistic shape deformation. Unlike previous 3D style transfer methods that only adjust color or texture, we enable fine-grained control over geometry, inspired by real brushstrokes.
+
+✨ Our method:
+
+* Adds per-Gaussian texture features to simulate brushstroke-like effects;
+
+* Applies a custom texture mapping technique for geometric stylization;
+
+* Uses unsupervised clustering to prune redundant Gaussians for efficiency;
+
+* Is fully compatible with existing 3DGS pipelines.
 
 ## Cloning
-To clone the repository, run
 ```bash
 git clone https://github.com/Xzzit/BrushGS --recursive
 cd BrushGS
 ```
 
 ## Installation
-if you have [3D Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting) installed, just run
+There are two ways to set up the environment depending on whether you've already installed [3D Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting).
+
+### Option 1: You already have 3DGS installed
 ```bash
 conda activate <your_3DGS_env>
-pip install scikit-learn=1.0.2
+pip install scikit-learn==1.0.2
+pip install brush-gaussian-rasterization\.
 ```
-otherwise, you can create a new conda environment by running
+
+### Option 2: You don't have 3DGS installed
+Create a new conda environment with all required packages:
 ```bash
 conda env create -f environment.yml
 ```
+💡Tip: The default environment name is brushGS, but feel free to change it in environment.yml if needed.
 
 ## Running
-### Step 0: (Optional) Train a Gaussian Splatting Model
-If you don't already have a pre-trained model, follow the instructions in the [3D Gaussian Splatting repository](https://github.com/graphdeco-inria/gaussian-splatting) to train a Gaussian Splatting model on your dataset.
+### Step 0: (Optional) Prepare a 3D Gaussian Splatting Model
+If you don't already have a pre-trained 3DGS model, follow the instructions in the [3D Gaussian Splatting repository](https://github.com/graphdeco-inria/gaussian-splatting) to train a Gaussian Splatting model on your dataset.
 
-After training, your pre-trained model's directory should look like this:
+After training, the output directory of your model should look like this:
 ```
 name_of_the_scene/
-├── point_cloud
-    ├── iteration_7000
-        ├── point_cloud.ply
-    ├── iteration_30000
-    ...
-├── test
-    ...
-├── train
-    ...
+├── point_cloud/               # Contains Gaussian checkpoints
+│   ├── iteration_7000/
+│   │   └── point_cloud.ply
+│   ├── iteration_30000/
+│   └── ...
 ├── cameras.json
+├── exposure.json
 ├── cfg_args
-└── exposure.json
 ├── input.ply
+├── train/                     # Optional
+├── test/                      # Optional
 ```
-
 
 ### Step 1: Pruning and Clustering
-Run the following command to perform pruning and clustering:
+Run the following command to prune the original Gaussians and perform clustering:
 ```bash
-python pruning.py -m <path_to_your_model> -n <number_of_clusters>
+python pruning.py -m <path_to_your_model_name> -n <number_of_clusters>
 ```
+Example:
+```bash
+python pruning.py -m E:\gaussian-splatting\output\mic -n 250
+```
+Arguments:
+
+`-m <path_to_your_model_name>`: Path to the trained 3DGS model directory.
+
+`-n <number_of_clusters>`: Number of output clusters (i.e., the number of retained Gaussian primitives).
+This value depends on the complexity of your scene:
+
+* 250 for a simple object scene (e.g., NeRF synthetic)
+
+* 10000 for complex scenes (e.g., Tanks and Temples)
 
 ### Step 2: Stylized Rendering
 Render the stylized Gaussian model using a style image:
