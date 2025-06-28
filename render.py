@@ -94,7 +94,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
         torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
         torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
 
-def render_sets(dataset: ModelParams, pipeline: PipelineParams, iteration: int, texture_path: str):
+def render_sets(dataset: ModelParams, pipeline: PipelineParams, num_cluster: int, texture_path: str):
     with torch.no_grad():
         if texture_path:
             texture, shading = load_image(texture_path)
@@ -103,7 +103,7 @@ def render_sets(dataset: ModelParams, pipeline: PipelineParams, iteration: int, 
             shading = torch.Tensor([])
 
         gaussians = GaussianModel(dataset.sh_degree)
-        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
+        scene = Scene(dataset, gaussians, load_iteration=num_cluster, shuffle=False)
 
         bg_color = [1,1,1] if dataset.white_background else [0, 0, 0]
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -120,13 +120,13 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Renderer parameters")
     model = ModelParams(parser, sentinel=True)
     pipeline = PipelineParams(parser)
-    parser.add_argument("--iteration", default=-1, type=int)
+    parser.add_argument("-n", "--num_cluster", default=-1, type=int)
     parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--texture", default='', type=str)
+    parser.add_argument("-t", "--texture", default='', type=str)
     args = get_combined_args(parser)
     print("Rendering " + args.model_path)
 
     # Initialize system state (RNG)
     safe_state(args.quiet)
 
-    render_sets(model.extract(args), pipeline.extract(args), args.iteration, args.texture)
+    render_sets(model.extract(args), pipeline.extract(args), args.num_cluster, args.texture)

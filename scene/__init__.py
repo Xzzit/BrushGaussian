@@ -30,7 +30,7 @@ class Scene:
                 self.loaded_iter = searchForMaxIteration(os.path.join(self.model_path, "point_cloud"))
             else:
                 self.loaded_iter = load_iteration
-            print("Loading trained model at iteration {}".format(self.loaded_iter))
+            print("Loading trained model at iteration / cluster {}".format(self.loaded_iter))
 
         self.train_cameras = {}
         self.test_cameras = {}
@@ -71,7 +71,7 @@ class Scene:
 
         if self.loaded_iter:
             self.gaussians.load_ply(os.path.join(self.model_path, "point_cloud",
-                                                 "iteration_" + str(self.loaded_iter),
+                                                 "cluster_" + str(self.loaded_iter),
                                                  "point_cloud.ply"))
         else:
             self.gaussians.create_from_pcd(scene_info.point_cloud, scene_info.train_cameras, self.cameras_extent)

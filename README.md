@@ -64,23 +64,31 @@ Run the following command to prune the original Gaussians and perform clustering
 ```bash
 python pruning.py -m <path_to_your_model_name> -n <number_of_clusters>
 ```
+
 Example:
 ```bash
 python pruning.py -m E:\gaussian-splatting\output\mic -n 250
 ```
+
 Arguments:
-
 `-m <path_to_your_model_name>`: Path to the trained 3DGS model directory.
-
 `-n <number_of_clusters>`: Number of output clusters (i.e., the number of retained Gaussian primitives).
 This value depends on the complexity of your scene:
-
-* 250 for a simple object scene (e.g., NeRF synthetic)
-
-* 10000 for complex scenes (e.g., Tanks and Temples)
+* 250 ~ 1000 for a simple object scene (e.g., NeRF synthetic)
+* 7000 ~ for complex scenes (e.g., Tanks and Temples)
 
 ### Step 2: Stylized Rendering
 Render the stylized Gaussian model using a style image:
 ```bash
-python render.py -m <path_to_your_model> --texture <style_image_path>
+python render.py -m <path_to_your_model> -t <style_image_path>
 ```
+
+Example:
+```bash
+python render.py -m output\mic -t texture\splatting.png
+```
+
+Arguments:
+`-m <path_to_your_model>`: Path to the pruned Gaussian model directory.
+`-t <style_image_path>`: Path to the style image you want to apply. For now, we only support RGBA images with alpha channels. If not provided, a elliptical rendering will be performed.
+`-n <number_of_cluster>`: Which cluster to be rendered. Default is -1, stands for max cluster.
