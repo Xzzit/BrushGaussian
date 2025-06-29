@@ -65,7 +65,7 @@ def main():
     fv = torch.cat([gaussians.get_xyz, gaussians.get_scaling, rgb3], dim=-1)
     if args.num_clusters == -1:
         # num_clusters = int(gaussians.get_xyz.shape[0] * 0.01)
-        num_clusters = 10000
+        num_clusters = 7000
     else:
         num_clusters = args.num_clusters
     kmeans = MiniBatchKMeans(n_clusters=num_clusters, batch_size=8192)
@@ -84,7 +84,7 @@ def main():
         num_points_list.append(num_points)
         means3D[i] = torch.mean(gaussians.get_xyz[mask], dim=0)
         opacities[i] = torch.mean(gaussians.get_opacity[mask], dim=0)
-        scales[i] = torch.mean(gaussians.get_scaling[mask], dim=0) * int(num_points ** (1/3))
+        scales[i] = torch.mean(gaussians.get_scaling[mask], dim=0) * int(num_points ** (1/4))
         rotations[i] = torch.mean(gaussians.get_rotation[mask], dim=0)
         shs[i] = torch.mean(gaussians.get_features[mask], dim=0)
     print(f"After clustering. Remaining: {num_clusters}")
@@ -99,7 +99,7 @@ def main():
         mask[k_opa] = False
         means3D = means3D[mask]
         opacities = opacities[mask]
-        opacities = (opacities - opacities.min()) / (opacities.max() - opacities.min()) * 0.6 + 0.4
+        opacities = (opacities - opacities.min()) / (opacities.max() - opacities.min()) * 0.3 + 0.7
         scales = scales[mask]
         rotations = rotations[mask]
         shs = shs[mask]

@@ -434,8 +434,8 @@ renderCUDA(
 				float det = cov2D.x * cov2D.z - cov2D.y * cov2D.y;
 				float lambda1 = mid + sqrt(max(0.1f, mid * mid - det));
 				float lambda2 = mid - sqrt(max(0.1f, mid * mid - det));
-				float principal_x = ceil(2.5f*sqrt(lambda1));
-				float principal_y = ceil(2.5f*sqrt(lambda2));
+				float principal_x = ceil(2.0f*sqrt(lambda1));
+				float principal_y = ceil(2.0f*sqrt(lambda2));
 
 				// Map coordinates to texture space
 				float u = 0.5f + 0.5f * x_rot / principal_x;
@@ -448,7 +448,7 @@ renderCUDA(
 
 				// Check if we are inside the rectangle
 				if (abs(x_rot) < principal_x && abs(y_rot) < principal_y)
-					alpha = min(0.99f, con_o.w * mask * lightness);
+					alpha = min(0.99f, con_o.w * mask);
 			}
 
 			// Skip if alpha is too small

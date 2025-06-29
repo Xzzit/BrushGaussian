@@ -78,7 +78,7 @@ This value depends on the complexity of your scene:
 * 7000 ~ for complex scenes (e.g., Tanks and Temples)
 
 ### Step 2: Stylized Rendering
-Render the stylized Gaussian model using a style image:
+Render the pruned Gaussian model using a custom brushstroke-style image:
 ```bash
 python render.py -m <path_to_your_model> -t <style_image_path>
 ```
@@ -92,3 +92,6 @@ Arguments:
 `-m <path_to_your_model>`: Path to the pruned Gaussian model directory.
 `-t <style_image_path>`: Path to the style image you want to apply. For now, we only support RGBA images with alpha channels. If not provided, a elliptical rendering will be performed.
 `-n <number_of_cluster>`: Which cluster to be rendered. Default is -1, stands for max cluster.
+
+### Known Issues
+* The current 3DGS has a bug when training on nerf synthetic datasets, which can be found in these [issue1](https://github.com/graphdeco-inria/gaussian-splatting/issues/1124) and [issue2](https://github.com/graphdeco-inria/gaussian-splatting/issues/1038).
