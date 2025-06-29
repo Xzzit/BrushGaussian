@@ -71,7 +71,9 @@ python pruning.py -m E:\gaussian-splatting\output\mic -n 250
 ```
 
 Arguments:
+
 `-m <path_to_your_model_name>`: Path to the trained 3DGS model directory.
+
 `-n <number_of_clusters>`: Number of output clusters (i.e., the number of retained Gaussian primitives).
 This value depends on the complexity of your scene:
 * 250 ~ 1000 for a simple object scene (e.g., NeRF synthetic)
@@ -89,8 +91,11 @@ python render.py -m output\mic -t texture\splatting.png
 ```
 
 Arguments:
+
 `-m <path_to_your_model>`: Path to the pruned Gaussian model directory.
+
 `-t <style_image_path>`: Path to the style image you want to apply. For now, we only support RGBA images with alpha channels. If not provided, a elliptical rendering will be performed.
+
 `-n <number_of_cluster>`: Which cluster to be rendered. Default is -1, stands for max cluster.
 
 ### Known Issues
