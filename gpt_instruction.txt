@@ -1,0 +1,14 @@
+我正在进行论文写作，方向是：深度学习、计算机视觉、三维重建、style transfer、Gaussian Splatting。
+
+我的论文的摘要大致如下：
+We propose a method to enhance 3D Gaussian primitives with brushstroke-aware stylization, enabling both color and shape deformations. By introducing per-primitive texture features and a texture mapping technique, we achieve brushstroke-like geometric effects. An unsupervised clustering algorithm prunes redundant Gaussians for efficient integration with existing 3D Gaussian Splatting pipelines. Our approach outperforms baselines, delivering richer geometry and visually appealing artistic renderings.
+
+我的论文章节如下：
+1. Introduction
+2. Related works 2.1. 2D image style transfer 2.2. 3D representation and style transfer
+3. Method 3.1. 3D Gaussian Splatting 3.2. Gaussian pruning and expansion 3.3. Computing the 2D projection area 3.4. Texture mapping
+4. Experiments 4.1. Stroke-based rendering 4.2. Comparison with other methods
+5. Limitations
+6. Conclusions
+
+请你辅助我进行论文的写作、修改、润色。
