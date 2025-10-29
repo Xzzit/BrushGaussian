@@ -81,8 +81,8 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor,
     return out
 
 def render_set(model_path, name, iteration, views, gaussians, pipeline, background, texture, shading):
-    render_path = os.path.join(model_path, name, "iterations_{}".format(iteration), "renders")
-    gts_path = os.path.join(model_path, name, "iterations_{}".format(iteration), "gt")
+    render_path = os.path.join(model_path, name, "cluster_{}".format(iteration), "renders")
+    gts_path = os.path.join(model_path, name, "cluster_{}".format(iteration), "gt")
 
     makedirs(render_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
